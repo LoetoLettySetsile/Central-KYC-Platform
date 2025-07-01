@@ -1,0 +1,66 @@
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="customer-home">Customer Portal</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="Upload-Documents">Upload Documents</a></li>
+          <li class="nav-item"><a class="nav-link" href="view-access-requests">View Access Requests</a></li>
+          <li class="nav-item"><a class="nav-link" href="Approve/Reject">Approve/Reject</a></li>
+          <li class="nav-item"><a class="nav-link" href="Manage-Shared-Access">Manage Shared Access</a></li>
+        </ul>
+        <a href="/logout" class="btn btn-outline-light">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+<h1>Manage Organization Access Requests</h1>
+
+<% if (requests.length === 0) { %>
+  <p>No access requests at the moment.</p>
+<% } else { %>
+  <% requests.forEach(req => { %>
+    <div class="request-card">
+      <p><strong>Organization:</strong> <%= req.organization_name %></p>
+      <p><strong>Purpose:</strong> <%= req.purpose || 'Not specified' %></p>
+      <p><strong>Status:</strong> <%= req.status %></p>
+      <p><strong>Requested At:</strong> <%= new Date(req.requested_at).toLocaleString() %></p>
+
+      <% if (req.status === 'pending') { %>
+        <form action="/approve-access-request" method="POST">
+        <input type="hidden" name="requestId" value="<%= req.id %>">
+          <% req.customer_documents.forEach(doc => { %>
+            <div class="mb-2 border rounded p-2">
+              <p><strong><%= doc.name %></strong></p>
+              <input type="checkbox" name="docs[]" value="<%= doc.id %>"> Grant Access
+              <select name="access_level_<%= doc.id %>" class="form-select form-select-sm mt-1">
+                <option value="read-only">Read-Only</option>
+                <option value="download">Download</option>
+                <option value="view-metadata">View Metadata</option>
+              </select>
+            </div>
+          <% }) %>
+          <button type="submit" class="btn btn-success">✅ Approve</button>
+        </form>
+        <form action="/reject-access-request" method="POST">
+          <input type="hidden" name="requestId" value="<%= req.id %>">
+          <button type="submit">❌ Reject</button>
+        </form>
+      <% } else if (req.status === 'approved') { %>
+        <form action="/revoke-access" method="POST">
+          <input type="hidden" name="requestId" value="<%= req.id %>">
+          <button type="submit">⛔ Revoke Access</button>
+        </form>
+      <% } else { %>
+        <p>Request has been <%= req.status %>.</p>
+      <% } %>
+    </div>
+  <% }) %>
+<% } %>

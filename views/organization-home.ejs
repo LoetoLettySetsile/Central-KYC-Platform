@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organization Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Organization Portal</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="Search-Customer">Search Customer</a></li>
+          <li class="nav-item"><a class="nav-link" href="View-Approved-Docs">View Approved Docs</a></li>
+          <li class="nav-item"><a class="nav-link" href="organization-doc-settings">Set Document Standard</a></li>
+        </ul>
+        <a href="/logout" class="btn btn-outline-light">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-5">
+    <h2>Welcome, <%= profile.name || "Organization" %>!</h2>
+    <% if (profile.name && profile.sector) { %>
+      <p><strong>Sector:</strong> <%= profile.sector %></p>
+    <% } %>
+  </div>
+
+  <div class="container mt-5">
+  <h3>Customers Who Approved Access</h3>
+  <table class="table table-striped table-bordered">
+    <thead class="table-primary">
+      <tr>
+        <th>Customer Name</th>
+        <th>Approved At</th>
+        <th>Valid Until</th>
+        <th>Purpose</th>
+        <th>Compliance</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (!approvedCustomers || approvedCustomers.length === 0) { %>
+        <tr><td colspan="5" class="text-center">No access approved by any customer.</td></tr>
+      <% } else { %>
+        <% approvedCustomers.forEach(entry => { %>
+          <tr>
+            <td><%= entry.customer_name %></td>
+            <td><%= new Date(entry.approved_at).toLocaleString() %></td>
+            <td><%= new Date(entry.valid_until).toLocaleDateString() %></td>
+            <td><%= entry.purpose || 'N/A' %></td>
+            <td>
+              <ul class="list-group list-group-flush">
+                <% const compliance = complianceSummary[entry.request_id] || []; %>
+                <% compliance.forEach(doc => { %>
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <%= doc.doc_type_name %> 
+                      <% if (doc.submitted) { %>
+                        <span class="badge bg-success">Submitted</span>
+                      <% } else if (doc.mandatory) { %>
+                        <span class="badge bg-danger">Missing (Mandatory)</span>
+                      <% } else { %>
+                        <span class="badge bg-warning text-dark">Missing (Optional)</span>
+                      <% } %>
+                    </div>
+                    <% if (doc.submitted) { %>
+                    <% if (doc.access_level === 'download') { %>
+                      <a href="/download/<%= doc.document_id %>" class="btn btn-sm btn-success">Download</a>
+                    <% } else if (doc.access_level === 'view') { %>
+                      <a href="/view/<%= doc.document_id %>" class="btn btn-sm btn-primary">View</a>
+                    <% } else if (doc.access_level === 'view-metadata') { %>
+                      <a href="/metadata/<%= doc.document_id %>" class="btn btn-sm btn-secondary">View Metadata</a>
+                    <% } else { %>
+                      <span class="text-muted">No Access</span>
+                    <% } %>
+                    <% } %>
+                  </li>
+                <% }); %>
+              </ul>
+
+            </td>
+          </tr>
+        <% }) %>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+
+    <!-- Modal -->
+  <div class="modal" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form class="modal-content" action="/update-organization-profile" method="POST">
+        <!-- No hidden input for user_id needed -->
+        <div class="mb-3">
+          <label for="name" class="form-label">Business Name</label>
+          <input type="text" class="form-control" name="name" required value="<%= profile.name || '' %>">
+        </div>
+        <div class="mb-3">
+          <label for="sector" class="form-label">Sector</label>
+          <input type="text" class="form-control" name="sector" required value="<%= profile.sector || '' %>">
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save & Continue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bootstrap Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <% if (incompleteProfile) { %>
+  <script>
+    const modal = new bootstrap.Modal(document.getElementById('profileModal'));
+    modal.show();
+  </script>
+  <% } %>
+</body>
+</html>

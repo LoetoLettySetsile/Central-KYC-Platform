@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>All Users - Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/admin-home">Admin Portal</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link active" href="/admin/view-users">View All Users</a></li>
+          <li class="nav-item"><a class="nav-link" href="/admin/system-logs">System Logs</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/admin/analytics">Analytics</a></li>
+        </ul>
+        <a href="/logout" class="btn btn-outline-light">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-5">
+    <h2>All Registered Users</h2>
+
+    <table class="table table-striped table-bordered mt-4">
+      <thead class="table-success">
+        <tr>
+          <th>ID</th>
+          <th>User Type</th>
+          <th>Login ID</th>
+          <th>Created At</th>
+          <th>Status</th>
+        </td>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (users.length === 0) { %>
+          <tr><td colspan="5" class="text-center">No users found.</td></tr>
+        <% } else { %>
+          <% users.forEach(user => { %>
+            <tr>
+              <td><%= user.id %></td>
+              <td><%= user.user_type %></td>
+              <td><%= user.Login_ID %></td>
+              <td><%= new Date(user.created_at).toLocaleString() %></td>
+              <td>
+                <% if (user.is_active) { %>
+                  <span class="badge bg-success">Active</span>
+                <% } else { %>
+                  <span class="badge bg-danger">Suspended</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

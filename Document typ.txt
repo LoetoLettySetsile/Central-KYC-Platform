@@ -1,0 +1,189 @@
+# PDF Document Extraction - Simplified KYC for Botswana
+
+```javascript
+const documentTypes = {
+  // 1. National ID (Omang Card - Botswana)
+  "national_id": {
+    type: "identity_document",
+    priority: "high",
+    fields: {
+      full_name: { required: true, type: "string" },
+      id_number: { required: true, type: "string" },
+      date_of_birth: { required: false, type: "date" },
+      nationality: { required: false, type: "string" }
+    }
+  },
+
+  // 2. Passport
+  "passport": {
+    type: "identity_document",
+    priority: "high",
+    fields: {
+      full_name: { required: true, type: "string" },
+      passport_number: { required: true, type: "string" },
+      date_of_birth: { required: false, type: "date" },
+      nationality: { required: false, type: "string" },
+      expiry_date: { required: false, type: "date" }
+    }
+  },
+
+  // 3. Driver's License
+  "drivers_license": {
+    type: "identity_document",
+    priority: "medium",
+    fields: {
+      full_name: { required: true, type: "string" },
+      license_number: { required: true, type: "string" },
+      date_of_birth: { required: false, type: "date" },
+      expiry_date: { required: false, type: "date" }
+    }
+  },
+
+  // 4. Utility Bill (Water & Electricity Corporation of Botswana)
+  "utility_bill": {
+    type: "address_proof",
+    priority: "high",
+    fields: {
+      account_holder_name: { required: true, type: "string" },
+      address: { required: true, type: "string" },
+      bill_date: { required: false, type: "date" },
+      utility_company: { required: false, type: "string" }
+    }
+  },
+
+  // 5. Bank Statement
+  "bank_statement": {
+    type: "financial_proof",
+    priority: "medium",
+    fields: {
+      account_holder_name: { required: true, type: "string" },
+      bank_name: { required: false, type: "string" },
+      statement_date: { required: false, type: "date" },
+      account_number: { required: false, type: "string", masked: true }
+    }
+  },
+
+  // 6. Tax ID (UIN - Unique Identification Number)
+  "tax_id": {
+    type: "tax_document",
+    priority: "low",
+    fields: {
+      full_name: { required: true, type: "string" },
+      tax_number: { required: true, type: "string" },
+      issuing_authority: { required: false, type: "string" }
+    }
+  },
+
+  // 7. Birth Certificate
+  "birth_certificate": {
+    type: "identity_document",
+    priority: "medium",
+    fields: {
+      full_name: { required: true, type: "string" },
+      date_of_birth: { required: true, type: "date" },
+      place_of_birth: { required: false, type: "string" },
+      registration_number: { required: false, type: "string" }
+    }
+  },
+
+  // 8. Employment Letter
+  "employment_letter": {
+    type: "income_proof",
+    priority: "low",
+    fields: {
+      employee_name: { required: true, type: "string" },
+      company_name: { required: false, type: "string" },
+      job_title: { required: false, type: "string" },
+      letter_date: { required: false, type: "date" }
+    }
+  },
+
+  // 9. Proof of Address (Other)
+  "proof_of_address": {
+    type: "address_proof",
+    priority: "medium",
+    fields: {
+      document_holder_name: { required: true, type: "string" },
+      address: { required: true, type: "string" },
+      document_date: { required: false, type: "date" },
+      document_type: { required: false, type: "string" }
+    }
+  },
+
+  // 10. Student ID
+  "student_id": {
+    type: "identity_document",
+    priority: "low",
+    fields: {
+      student_name: { required: true, type: "string" },
+      student_id_number: { required: false, type: "string" },
+      institution_name: { required: false, type: "string" }
+    }
+  }
+};
+
+// Simple validation patterns for Botswana context
+const validationPatterns = {
+  date: /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/, // Flexible date format
+  omang_id: /^\d{9}$/, // Botswana Omang ID is 9 digits
+  passport_number: /^[A-Z]{1,2}\d{6,8}$/, // Common passport format
+  phone: /^(\+267)?[0-9\s\-]{8,}$/, // Botswana phone numbers
+  name: /^[A-Za-z\s\-'\.]{2,}$/ // Names with common characters
+};
+
+// KYC Requirements by document priority
+const kycRequirements = {
+  identity_verification: {
+    primary: ["national_id", "passport"],
+    secondary: ["drivers_license", "birth_certificate"]
+  },
+  address_verification: {
+    primary: ["utility_bill", "proof_of_address"],
+    secondary: ["bank_statement"]
+  },
+  income_verification: {
+    primary: ["employment_letter", "bank_statement"],
+    secondary: ["tax_id"]
+  }
+};
+
+// Extraction confidence levels
+const extractionConfig = {
+  confidence_threshold: 0.6, // Lower threshold for developing countries
+  retry_attempts: 2,
+  fallback_ocr: true,
+  manual_review_required: 0.4 // If confidence below 40%, flag for manual review
+};
+
+module.exports = {
+  documentTypes,
+  validationPatterns,
+  kycRequirements,
+  extractionConfig
+};
+```
+
+## Simplified KYC Approach for Botswana
+
+### Key Principles:
+- **Minimal Required Fields**: Only essential data for KYC compliance
+- **Flexible Validation**: Account for document quality and scanning issues
+- **Practical Priorities**: Focus on commonly available documents
+- **Manual Review Fallback**: Low confidence extractions flagged for human review
+
+### Document Priorities:
+1. **High Priority**: National ID (Omang), Passport, Utility Bills
+2. **Medium Priority**: Birth Certificate, Proof of Address, Bank Statement
+3. **Low Priority**: Tax ID, Employment Letter, Student ID
+
+### Common Botswana Documents:
+- **Omang Card**: National identity document (9-digit number)
+- **WEC/BPC Bills**: Water & Electricity Corporation or Botswana Power Corporation
+- **Bank Statements**: From banks like FNB, Standard Chartered, Barclays
+- **Mobile Money**: Orange Money, MyZaka statements as address proof
+
+### Extraction Strategy:
+1. **Try text extraction first** (faster, more accurate for digital PDFs)
+2. **Fall back to OCR** if text extraction fails or confidence is low
+3. **Flag for manual review** if confidence below 40%
+4. **Accept partial data** - don't fail if optional fields missing

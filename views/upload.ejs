@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Upload KYC Documents</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+    }
+
+    nav {
+      background-color: #333;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav a {
+      color: white;
+      text-decoration: none;
+      margin-right: 20px;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      padding: 30px;
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-top: 30px;
+      border-radius: 6px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    .doc-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    select, input[type="file"], button {
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    select, input[type="file"] {
+      flex: 1;
+    }
+
+    button[type="submit"] {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 15px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    button[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+
+    .add-button {
+      margin-top: 10px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .add-button:hover {
+      background-color: #218838;
+    }
+
+    .doc-row button {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .doc-row button:hover {
+      background-color: #c82333;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div>
+      <a href="/customer-home"><strong>Customer Portal</strong></a>
+      <a href="/Upload-Documents">Upload Documents</a>
+      <a href="/view-access-requests">View Access Requests</a>
+    </div>
+    <a href="/logout">Logout</a>
+  </nav>
+
+  <div class="container">
+    <h1>Upload Your KYC Documents</h1>
+
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+      <div id="docFields">
+        <div class="doc-row">
+          <select name="document_type_ids" required>
+            <option value="" disabled selected>Select Document Type</option>
+            <% documentTypes.forEach(doc => { %>
+              <option value="<%= doc.id %>"><%= doc.name %></option>
+            <% }) %>
+          </select>
+          <input type="file" name="documents" required>
+        </div>
+      </div>
+
+      <button type="button" class="add-button" onclick="addDocumentField()">+ Add Another Document</button><br><br>
+      <button type="submit">Upload</button>
+    </form>
+  </div>
+
+  <script>
+    
+    const documentTypes = <%- JSON.stringify(documentTypes) %>;
+
+    function addDocumentField() {
+      const div = document.createElement('div');
+      div.className = 'doc-row';
+
+      let options = '<option value="" disabled selected>Select Document Type</option>';
+      documentTypes.forEach(doc => {
+        options += `<option value="${doc.id}">${doc.name}</option>`;
+      });
+
+      div.innerHTML = `
+        <select name="document_type_ids" required>${options}</select>
+        <input type="file" name="documents" required>
+        <button type="button" onclick="this.parentElement.remove()">Remove</button>
+      `;
+
+      document.getElementById('docFields').appendChild(div);
+    }
+  </script>
+
+</body>
+</html>

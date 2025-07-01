@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="customer-home">Customer Portal</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="Upload-Documents">Upload Documents</a></li>
+          <li class="nav-item"><a class="nav-link" href="view-access-requests">View Access Requests</a></li>
+        </ul>
+        <a href="/logout" class="btn btn-outline-light">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-5">
+    <h2>Welcome, <%= profile.full_name || "Customer" %>!</h2>
+    <% if (profile.full_name && profile.national_id) { %>
+      <p><strong>National ID:</strong> <%= profile.national_id %></p>
+    <% } %>
+  </div>
+  
+ <div class="container mt-5">
+  <h3>Approved Access Requests</h3>
+  <table class="table table-striped table-bordered">
+    <thead class="table-dark">
+      <tr>
+        <th>Organization</th>
+        <th>Purpose</th>
+        <th>Requested At</th>
+        <th>Valid Until</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (!approvedRequests || approvedRequests.length === 0) { %>
+        <tr><td colspan="5" class="text-center">No approved access requests.</td></tr>
+      <% } else { %>
+        <% approvedRequests.forEach(req => { %>
+          <tr>
+            <td><%= req.organization_name %></td>
+            <td><%= req.purpose || 'N/A' %></td>
+            <td><%= new Date(req.requested_at).toLocaleString() %></td>
+            <td><%= new Date(req.valid_until).toLocaleDateString() %></td>
+            <td>
+              <form action="/revoke-access" method="POST" onsubmit="return confirm('Revoke access for this organization?')">
+                <input type="hidden" name="request_id" value="<%= req.id %>">
+                <button type="submit" class="btn btn-danger btn-sm">Revoke</button>
+              </form>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="5">
+              <strong>Compliance Summary:</strong>
+              <ul class="list-group list-group-flush mt-2">
+                <% const compliance = complianceSummary[req.id] || []; %>
+                <% compliance.forEach(doc => { %>
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <%= doc.doc_type_name %>
+                    <% if (doc.submitted) { %>
+                      <span class="badge bg-success">Submitted</span>
+                    <% } else if (doc.mandatory) { %>
+                      <span class="badge bg-danger">Missing (Mandatory)</span>
+                    <% } else { %>
+                      <span class="badge bg-warning text-dark">Missing (Optional)</span>
+                    <% } %>
+                  </li>
+                <% }); %>
+              </ul>
+            </td>
+          </tr>
+        <% }) %>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+
+
+  <!-- Main Section -->
+   <div class="container mt-5">
+  <h3>Your Uploaded Documents</h3>
+  <table class="table table-bordered">
+    <thead class="table-dark">
+      <tr>
+        <th>Description</th>
+        <th>File</th>
+        <th>Uploaded At</th>
+        <th>Expires At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (documents.length === 0) { %>
+        <tr><td colspan="5" class="text-center">No documents uploaded yet.</td></tr>
+      <% } else { %>
+        <% documents.forEach(doc => { %>
+          <tr>
+            <td><%= doc.description || 'No description' %></td>
+            <td><a href="/<%= doc.file_path %>" target="_blank"><%= doc.file_path.split('/').pop() %></a></td>
+            <td><%= new Date(doc.uploaded_at).toLocaleString() %></td>
+            <td><%= new Date(doc.expires_at).toLocaleDateString() %></td>
+            <td>
+              <!-- Update -->
+              <form action="/update-document" method="POST" enctype="multipart/form-data" style="display:inline;">
+                <input type="file" name="newDoc" required>
+                <input type="hidden" name="docId" value="<%= doc.id %>">
+                <button class="btn btn-sm btn-warning" type="submit">Update</button>
+              </form>
+
+              <!-- Delete -->
+              <form action="/delete-document" method="POST" style="display:inline;" onsubmit="return confirm('Delete this document?')">
+                <input type="hidden" name="docId" value="<%= doc.id %>">
+                <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+  <!-- Modal -->
+  <div class="modal" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form class="modal-content" action="/update-customer-profile" method="POST">
+        <!-- No hidden input for user_id needed -->
+        <div class="mb-3">
+          <label for="full_name" class="form-label">Full Name</label>
+          <input type="text" class="form-control" name="full_name" required value="<%= profile.full_name || '' %>">
+        </div>
+        <div class="mb-3">
+          <label for="national_id" class="form-label">National ID</label>
+          <input type="text" class="form-control" name="national_id" required value="<%= profile.national_id || '' %>">
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save & Continue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bootstrap Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <% if (incompleteProfile) { %>
+  <script>
+    const modal = new bootstrap.Modal(document.getElementById('profileModal'));
+    modal.show();
+  </script>
+  <% } %>
+</body>
+</html>

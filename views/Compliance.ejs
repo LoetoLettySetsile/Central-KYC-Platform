@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Compliance Requirements</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-danger">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/regulator-home">Regulator Portal</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="/system-logs">Audit Flows</a></li>
+        </ul>
+        <a href="/logout" class="btn btn-outline-light">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h2 class="mb-4">KYC Document Compliance Requirements by Organization</h2>
+    <table class="table table-bordered table-striped">
+      <thead class="table-dark">
+        <tr>
+          <th>Organization</th>
+          <th>Document Type</th>
+          <th>Mandatory</th>
+          <th>Valid For (Days)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% requirements.forEach(req => { %>
+          <tr>
+            <td><%= req.organization_name %></td>
+            <td><%= req.document_type %></td>
+            <td><%= req.mandatory ? 'Yes' : 'No' %></td>
+            <td><%= req.valid_for_days %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

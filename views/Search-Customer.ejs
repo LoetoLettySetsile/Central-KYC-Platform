@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Search Customer</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    nav {
+      background-color: #1f1f1f;
+      padding: 1em;
+    }
+
+    nav a {
+      color: #fff;
+      margin-right: 1em;
+      text-decoration: none;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      padding: 2em;
+    }
+
+    input[type="text"] {
+      padding: 0.5em;
+      margin-right: 0.5em;
+    }
+
+    button {
+      padding: 0.5em 1em;
+      background-color: #0066cc;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0052a3;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 1em;
+    }
+
+    form.inline {
+      display: inline;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/organization-home">Home</a>
+    <a href="/logout">Logout</a>
+  </nav>
+
+  <div class="container">
+    <h2>Search for a Customer</h2>
+
+    <form method="GET" action="/search-customer">
+      <input type="text" name="name" placeholder="Search customer..." required />
+      <button type="submit">Search</button>
+    </form>
+
+    <% if (results && results.length > 0) { %>
+      <h3>Search Results:</h3>
+      <ul>
+        <% results.forEach(c => { %>
+          <li>
+            <%= c.full_name %>
+            <form method="POST" action="/send-request" class="inline">
+              <input type="hidden" name="customer_id" value="<%= c.id %>"/>
+              <input type="text" name="purpose" placeholder="Purpose (optional)" />
+              <button type="submit">Send Request</button>
+            </form>
+          </li>
+        <% }) %>
+      </ul>
+    <% } else if (typeof results !== 'undefined') { %>
+      <p>No customers found.</p>
+    <% } %>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "connect-flash": "^0.1.1",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.5.0",
+    "ejs": "^3.1.10",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "multer": "^2.0.1",
+    "mysql2": "^3.14.1",
+    "pdf-parse": "^1.1.1",
+    "pdf2pic": "^3.2.0",
+    "tesseract.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  }
+}
