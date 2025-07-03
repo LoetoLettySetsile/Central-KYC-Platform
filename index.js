@@ -852,12 +852,17 @@ app.get('/view-access-requests', async (req, res) => {
   if (!req.session.user || req.session.role !== 'customer') return res.redirect('/');
 
   const customerId = req.session.user.id;
-  await logAudit({
-  db,
-  userId: customerId,
-  action: 'Viewed access requests',
-  details: `Customer viewed pending access requests`
-});
+const logAudit = async ({ db, userId, action, targetType, targetId, details }) => {
+  // Convert undefined values to null for SQL
+  targetType = targetType ?? null;
+  targetId = targetId ?? null;
+
+  const query = `
+    INSERT INTO Audit_Log (user_id, action, target_type, target_id, details, timestamp)
+    VALUES (?, ?, ?, ?, ?, NOW())
+  `;
+  await db.execute(query, [userId, action, targetType, targetId, details]);
+};
 
   const [requests] = await db.query(`
     SELECT ar.*, o.name AS organization_name
@@ -885,26 +890,26 @@ app.post('/approve-access-request', async (req, res) => {
   const { requestId } = req.body;
   const customerId = req.session.user.id;
 
+  const docs = req.body.docs || []; // ✅ Move this before using it in the audit log
+
   try {
     await logAudit({
-  db,
-  userId: customerId,
-  action: 'Approved access request',
-  targetType: 'access_request',
-  targetId: requestId,
-  details: `Approved request ID ${requestId}, granted docs: ${JSON.stringify(docs)}`
-});
+      db,
+      userId: customerId,
+      action: 'Approved access request',
+      targetType: 'access_request',
+      targetId: requestId,
+      details: `Approved request ID ${requestId}, granted docs: ${JSON.stringify(docs)}`
+    });
 
-    // Approve request
+    // ✅ Approve the request
     await db.execute(`
       UPDATE Access_Requests
       SET status = 'approved', approved_by = ?
       WHERE id = ? AND customer_id = ?
     `, [customerId, requestId, customerId]);
 
-    // Insert permissions
-    const docs = req.body.docs || []; // array of selected doc IDs
-
+    // ✅ Insert permissions
     for (const docId of docs) {
       const accessLevel = req.body[`access_level_${docId}`] || 'read-only';
 
@@ -915,11 +920,13 @@ app.post('/approve-access-request', async (req, res) => {
     }
 
     res.redirect('/view-access-requests');
+
   } catch (err) {
     console.error('Approval error:', err);
     res.status(500).send('Error approving request.');
   }
 });
+
 
 app.post('/reject-access-request', async (req, res) => {
   const { requestId } = req.body;
@@ -943,15 +950,19 @@ app.post('/reject-access-request', async (req, res) => {
 });
 
 app.post('/revoke-access', async (req, res) => {
-  if (!req.session.user || req.session.role !== 'customer') return res.status(401).send("Unauthorized");
+  // Match your working function - just check if user exists
+  if (!req.session.user) {
+    return res.status(401).send("Unauthorized");
+  }
 
   const { request_id } = req.body;
+  const customerId = req.session.user.id; // Use same pattern as your working function
 
   try {
     // Optional: Verify the access request belongs to the customer
     const [rows] = await db.execute(
       `SELECT * FROM Access_Requests WHERE id = ? AND customer_id = ? AND status = 'approved'`,
-      [request_id, req.session.user.id]
+      [request_id, customerId] // Use customerId variable like your other function
     );
 
     if (rows.length === 0) {
@@ -966,14 +977,15 @@ app.post('/revoke-access', async (req, res) => {
       `UPDATE Access_Requests SET status = 'revoked' WHERE id = ?`,
       [request_id]
     );
+
     await logAudit({
-  db,
-  userId: req.session.user.id,
-  action: 'Revoked access',
-  targetType: 'access_request',
-  targetId: request_id,
-  details: `Revoked access for request ID ${request_id}`
-});
+      db,
+      userId: customerId, // Use customerId instead of req.session.user.id
+      action: 'Revoked access',
+      targetType: 'access_request',
+      targetId: request_id,
+      details: `Revoked access for request ID ${request_id}`
+    });
 
     res.redirect('/Customer-home');
   } catch (err) {
@@ -1463,6 +1475,157 @@ app.get('/admin/analytics', requireRole('admin'), async (req, res) => {
     res.status(500).send('Failed to load analytics.');
   }
 });
+
+app.get('/search-customer', async (req, res) => {
+  const searchTerm = req.query.name;
+
+  console.log(`[LOG] Received search request for: ${searchTerm}`);
+
+  if (!searchTerm || searchTerm.trim() === '') {
+    console.warn('[WARN] Empty search term received.');
+    return res.render('search-customer', { results: [] });
+  }
+
+  try {
+    const [results] = await db.execute(
+      `SELECT id, full_name FROM Customers WHERE full_name LIKE ?`,
+      [`%${searchTerm}%`]
+    );
+
+    console.log(`[LOG] Found ${results.length} result(s) for "${searchTerm}"`);
+
+    res.render('search-customer', { results });
+  } catch (err) {
+    console.error('[ERROR] Search failed:', err);
+    res.status(500).send('An error occurred during the search.');
+  }
+});
+
+app.post('/send-request', async (req, res) => {
+  try {
+    const userId = req.session.user?.id; // user from Users table
+    const { customer_id, purpose } = req.body;
+
+    if (!userId || !customer_id) {
+      console.warn('[WARN] Missing user ID or customer ID in request');
+      return res.status(400).send('Missing required fields');
+    }
+
+    // Get organization_id from the logged-in user
+    const [orgResult] = await db.execute(
+      `SELECT id FROM Organizations WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (orgResult.length === 0) {
+      console.error('[ERROR] No organization found for this user');
+      return res.status(403).send('Unauthorized organization user');
+    }
+
+    const organizationId = orgResult[0].id;
+
+    console.log(`[LOG] Organization ${organizationId} is sending an access request to customer ${customer_id}`);
+    console.log(`[LOG] Purpose of request: ${purpose}`);
+
+    // Insert request
+    const [result] = await db.execute(`
+      INSERT INTO Access_Requests 
+        (organization_id, customer_id, requested_at, status, purpose, valid_until, approved_by)
+      VALUES (?, ?, NOW(), 'pending', ?, NULL, NULL)
+    `, [organizationId, customer_id, purpose]);
+
+    console.log(`[SUCCESS] Access request created with ID ${result.insertId}`);
+
+    // Audit log
+    await db.execute(`
+      INSERT INTO Audit_Log 
+        (user_id, action, target_type, target_id, timestamp, details)
+      VALUES (?, 'create_request', 'request', ?, NOW(), ?)
+    `, [
+      userId,
+      result.insertId,
+      `Request sent by Org ID ${organizationId} for Customer ID ${customer_id}. Purpose: ${purpose || 'N/A'}`
+    ]);
+
+    console.log('[AUDIT] Audit log recorded for request action');
+
+    res.redirect('/organization-home');
+
+  } catch (err) {
+    console.error('[ERROR] Failed to process /send-request:', err.message);
+    res.status(500).send('Internal server error');
+  }
+});
+
+// GET: show form and existing requirements
+app.get('/organization-doc-settings', async (req, res) => {
+  if (!req.session.user || req.session.role !== 'organization') {
+    return res.redirect('/');
+  }
+
+  const loginId = req.session.user.Login_ID;
+  const [[user]] = await db.query('SELECT id FROM Users WHERE Login_ID = ?', [loginId]);
+  const [[org]] = await db.query('SELECT id FROM Organizations WHERE user_id = ?', [user.id]);
+
+  const [docTypes] = await db.query('SELECT * FROM Document_Types');
+  const [existingRequirements] = await db.query(
+    'SELECT odr.*, dt.name as doc_name FROM Organization_Doc_Requirements odr JOIN Document_Types dt ON odr.document_type_id = dt.id WHERE odr.organization_id = ?',
+    [org.id]
+  );
+
+  res.render('organization-doc-settings', {
+    docTypes,
+    requirements: existingRequirements,
+    orgId: org.id
+  });
+});
+
+app.post('/organization-doc-settings', async (req, res) => {
+  const {
+    organization_id,
+    document_type_id,
+    mandatory = [], // if checkbox unchecked, it won’t show up, so default to []
+    valid_for_days
+  } = req.body;
+
+  // Ensure arrays
+  const docIds = Array.isArray(document_type_id) ? document_type_id : [document_type_id];
+  const days = Array.isArray(valid_for_days) ? valid_for_days : [valid_for_days];
+
+  try {
+    for (let i = 0; i < docIds.length; i++) {
+      const docId = parseInt(docIds[i]);
+      const isMandatory = Array.isArray(mandatory)
+        ? mandatory.includes(mandatory[i]) || mandatory[i] === 'on'
+        : false;
+      const validDays = parseInt(days[i]);
+
+      const [existing] = await db.query(
+        `SELECT * FROM Organization_Doc_Requirements WHERE organization_id = ? AND document_type_id = ?`,
+        [organization_id, docId]
+      );
+
+      if (existing.length > 0) {
+        await db.query(
+          `UPDATE Organization_Doc_Requirements SET mandatory = ?, valid_for_days = ? WHERE id = ?`,
+          [isMandatory, validDays, existing[0].id]
+        );
+      } else {
+        await db.query(
+          `INSERT INTO Organization_Doc_Requirements (organization_id, document_type_id, mandatory, valid_for_days)
+           VALUES (?, ?, ?, ?)`,
+          [organization_id, docId, isMandatory, validDays]
+        );
+      }
+    }
+
+    res.redirect('/organization-doc-settings');
+  } catch (err) {
+    console.error('Error saving requirements:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 
 
 
